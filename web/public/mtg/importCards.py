@@ -58,8 +58,7 @@ def generate_initial_special_query(category):
 
 
 def generate_initial_artist_query():
-    string_query = 'https://api.scryfall.com/cards/search?q=' + artist_denylist + \
-        '-security_stamp%3Atriangle+-art%3Aartist-signature+artists%3D1+-st%3Afunny+not%3Aextra+not%3Adigital+-st%3Atoken+-t%3Avanguard+-st%3Amemorabilia+-t%3Ascheme+-t%3Aplane+-t%3APhenomenon&unique=art&as=grid&order=artist&page='
+    string_query = f'https://api.scryfall.com/cards/search?q={artist_denylist}-security_stamp%3Atriangle+-art%3Aartist-signature+artists%3D1+-st%3Afunny+not%3Aextra+not%3Adigital+-st%3Atoken+-t%3Avanguard+-st%3Amemorabilia+-t%3Ascheme+-t%3Aplane+-t%3APhenomenon&unique=art&as=grid&order=artist&page='
     print("artistList")
     print(string_query)
     return string_query
@@ -79,14 +78,14 @@ def fetch_and_write_all(category, query):
     count = 1
     will_repeat = True
     all_cards = {'data': []}
-    art_names = dict()
+    art_names = {}
     while will_repeat:
         response = fetch(query, count)
         will_repeat = response['has_more']
         count += 1
         to_compact_write_form(all_cards, art_names, response, category)
 
-    with open('jsons/' + category + '.json', 'w') as f:
+    with open(f'jsons/{category}.json', 'w') as f:
         json.dump(all_cards, f)
 
 
@@ -94,18 +93,15 @@ def fetch_and_write_all_special(category, query):
     count = 1
     will_repeat = True
     all_cards = {'data': []}
-    art_names = dict()
+    art_names = {}
     while will_repeat:
-        if category == 'set':
-            response = fetch_special(query)
-        else:
-            response = fetch(query, count)
+        response = fetch_special(query) if category == 'set' else fetch(query, count)
         will_repeat = response['has_more']
         count += 1
         to_compact_write_form_special(
             all_cards, art_names, response, category, {})
 
-    with open('jsons/' + category + '.json', 'w') as f:
+    with open(f'jsons/{category}.json', 'w') as f:
         json.dump(all_cards, f)
 
 
@@ -119,17 +115,19 @@ def fetch_and_write_all_artist():
     print(math.ceil(len(artist_ids)/37.0))
     for i in range(math.ceil(len(artist_ids)/37.0)):
         queried_artists_pre = artist_ids[i*37:min((i+1)*37, len(artist_ids))]
-        queried_artists = []
-        for j in range(len(queried_artists_pre)):
-            if artists[queried_artists_pre[j]][1] >= 50 or artists[queried_artists_pre[j]][0] in artist_allowlist:
-                queried_artists.append(queried_artists_pre[j])
+        queried_artists = [
+            queried_artists_pre[j]
+            for j in range(len(queried_artists_pre))
+            if artists[queried_artists_pre[j]][1] >= 50
+            or artists[queried_artists_pre[j]][0] in artist_allowlist
+        ]
         print(queried_artists)
         print(i)
-        if len(queried_artists) == 0:
+        if not queried_artists:
             continue
         count = 1
         will_repeat = True
-        art_names = dict()
+        art_names = {}
         query = generate_individual_artist_query(
             queried_artists, artists)
         print(query)
@@ -154,7 +152,7 @@ def fetch_and_write_initial_artist_query():
     will_repeat = True
     count = 1
     while will_repeat:
-        print("artist fetching: "+str(count))
+        print(f"artist fetching: {str(count)}")
         response = fetch(all_artists_query, count)
         will_repeat = response['has_more']
         count += 1
@@ -192,7 +190,7 @@ def to_compact_write_form(smallJson, art_names, response, category):
         digital_holder = filter_card(card, art_names, data)
         if digital_holder == False:
             continue
-        write_card = dict()
+        write_card = {}
         for field in fieldsInCard:
             if field == 'name' and category == 'artifact':
                 write_card['name'] = card['released_at'].split('-')[0]
@@ -230,7 +228,7 @@ def to_compact_write_form_special(smallJson, art_names, response, category, arti
             digital_holder = filter_card(card, art_names, data)
             if digital_holder == False:
                 continue
-            write_card = dict()
+            write_card = {}
             for field in fieldsInBasic:
                 if field == 'image_uris':
                     write_card['image_uris'] = write_image_uris(
@@ -248,17 +246,17 @@ def to_compact_write_form_special(smallJson, art_names, response, category, arti
             digital_holder = filter_card(card, art_names, data)
             if digital_holder == False:
                 continue
-            write_card = dict()
+            write_card = {}
             for field in fieldsInArtist:
                 if field == 'artist_ids':
                     write_card['name'] = artists[card['artist_ids'][0]][0]
                 elif field == 'image_uris':
-                    if 'card_faces' in card and 'image_uris' in card['card_faces'][0]:
-                        write_card['image_uris'] = write_image_uris(
-                            card['card_faces'][0]['image_uris'])
-                    else:
-                        write_card['image_uris'] = write_image_uris(
-                            card['image_uris'])
+                    write_card['image_uris'] = (
+                        write_image_uris(card['card_faces'][0]['image_uris'])
+                        if 'card_faces' in card
+                        and 'image_uris' in card['card_faces'][0]
+                        else write_image_uris(card['image_uris'])
+                    )
                 elif field in card and card[field]:
                     write_card[field] = card[field]
             if digital_holder != -1:
@@ -273,7 +271,7 @@ def to_compact_write_form_special(smallJson, art_names, response, category, arti
             if 'card_faces' in card and 'watermark' in card['card_faces'][0] and 'watermark' in card['card_faces'][1] and card['card_faces'][1]['watermark'] != card['card_faces'][0]['watermark']:
                 # print(card['name'])
                 continue
-            write_card = dict()
+            write_card = {}
             for field in fieldsInWatermark:
                 if field == 'watermark':
                     # print(card['name'])
@@ -295,11 +293,8 @@ def to_compact_write_form_special(smallJson, art_names, response, category, arti
                 data[digital_holder] = write_card
             else:
                 data.append(write_card)
-        else:
-            # print(card['name'])
-            # print(category)
-            if card['set_type'] != 'token':
-                smallJson[card['code']] = [card['name'], card['icon_svg_uri']]
+        elif card['set_type'] != 'token':
+            smallJson[card['code']] = [card['name'], card['icon_svg_uri']]
 
 
 def filter_card(card, art_names, data):
@@ -315,13 +310,12 @@ def filter_card(card, art_names, data):
         card_face = card['card_faces'][0]
         if 'illustration_id' not in card_face or card_face['illustration_id'] in art_names and (art_names[card_face['illustration_id']] < 0 or card['digital']):
             return False
-        else:
-            ind = len(data)
-            if (card_face['illustration_id'] in art_names):
-                digital_holder = art_names[card['illustration_id']]
-                ind = -1
-            write_art(
-                art_names, card_face['illustration_id'], ind, card)
+        ind = len(data)
+        if (card_face['illustration_id'] in art_names):
+            digital_holder = art_names[card['illustration_id']]
+            ind = -1
+        write_art(
+            art_names, card_face['illustration_id'], ind, card)
     elif 'illustration_id' not in card or card['illustration_id'] in art_names and (art_names[card['illustration_id']] < 0 or card['digital']):
         return False
     else:
@@ -352,7 +346,7 @@ def write_to_artist_list(response, artists, prev_artist):
 
 # only write images needed
 def write_image_uris(card_image_uris):
-    image_uris = dict()
+    image_uris = {}
     if 'normal' in card_image_uris:
         image_uris['normal'] = card_image_uris['normal']
     elif 'large' in card_image_uris:
